@@ -387,6 +387,3 @@ Delete item	Record removed permanently
 View inventory	Displays updated list dynamically
 
 
-
-
-Would you like me to add the inventory list page (inventoryList.jsp + ListItemsServlet.java) next so you can view, edit, and delete all items on one dashboard page?
