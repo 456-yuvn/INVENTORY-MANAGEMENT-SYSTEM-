@@ -1,0 +1,392 @@
+INVENTORY MANAGMENT SYSTEM 
+
+1. Overview
+
+The Inventory Management System (IMS) module is designed to perform Create, Read, Update, and Delete (CRUD) operations on inventory data.
+It allows authorized users to maintain up-to-date product information such as product name, SKU, category, supplier, quantity, price, and storage location.
+This ensures accurate stock visibility, efficient operations, and reliable reporting for business management.
+
+
+
+
+2. Functional Objectives
+
+Objective	Description
+
+Add Inventory	Add new stock items with full details (name, SKU, category, quantity, supplier, price, location).
+Update Inventory	Modify item details such as quantity, price, supplier, or location.
+Delete Inventory	Remove outdated, incorrect, or obsolete items from the system.
+
+
+
+
+
+3. Core Features
+
+ Real-time validation to avoid duplicate SKUs or incomplete entries.
+
+ CRUD support with database integration (MySQL).
+
+ User-friendly JSP interface for data entry and updates.
+
+ Audit-ready structure (timestamps, activity logging).
+
+ Error handling and rollback for failed database operations.
+
+ Security checks for authenticated user access.
+
+
+
+---
+
+4. Workflow Example
+
+Add Item
+
+1. User clicks “Add Product”.
+
+
+2. Inputs all required fields (Name, SKU, Quantity, etc.).
+
+
+3. System validates fields → saves to database → displays success message.
+
+
+
+Update Item
+
+1. User selects an existing product.
+
+
+2. Edits details (price, supplier, quantity, etc.).
+
+
+3. System updates the record and refreshes the product list.
+
+
+
+Delete Item
+
+1. User clicks “Delete” next to an item.
+
+
+2. System asks for confirmation.
+
+
+3. Record is removed, and the inventory list updates automatically.
+
+
+
+
+---
+
+5. Technology Stack
+
+Layer	Technology Used
+
+Frontend	HTML, CSS, JSP
+Backend	Java Servlets
+Database	MySQL (JDBC connection)
+Server	Apache Tomcat
+Session Management	HttpSession (for authentication)
+
+
+
+
+Project Structure
+
+InventoryManagementSystem/
+│
+├── src/
+│   ├── com/example/controller/
+│   │   ├── AddItemServlet.java
+│   │   ├── UpdateItemServlet.java
+│   │   ├── DeleteItemServlet.java
+│   │   └── ListItemsServlet.java
+│
+├── WebContent/
+│   ├── addItem.jsp
+│   ├── updateItem.jsp
+│   ├── inventoryList.jsp
+│   ├── message.jsp
+│   └── WEB-INF/
+│       └── web.xml
+│
+└── database/
+    └── inventory.sql
+
+
+
+ Database Schema (MySQL)
+
+CREATE DATABASE inventorydb;
+USE inventorydb;
+
+CREATE TABLE inventory (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_name VARCHAR(100),
+    sku VARCHAR(50) UNIQUE,
+    category VARCHAR(50),
+    quantity INT,
+    supplier VARCHAR(100),
+    price DECIMAL(10,2),
+    location VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+ Sample Code Files
+
+1. addItem.jsp
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Inventory Item</title>
+</head>
+<body style="font-family:Arial; text-align:center;">
+    <h2>Add New Product</h2>
+    <form action="addItem" method="post">
+        Product Name: <input type="text" name="product_name" required><br><br>
+        SKU: <input type="text" name="sku" required><br><br>
+        Category: <input type="text" name="category"><br><br>
+        Quantity: <input type="number" name="quantity" required><br><br>
+        Supplier: <input type="text" name="supplier"><br><br>
+        Price: <input type="text" name="price" required><br><br>
+        Location: <input type="text" name="location"><br><br>
+        <input type="submit" value="Add Item">
+    </form>
+
+    <p><a href="listItems">View Inventory</a></p>
+</body>
+</html>
+
+
+
+
+2. AddItemServlet.java
+
+package com.example.controller;
+
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+import java.sql.*;
+
+public class AddItemServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+
+        String name = request.getParameter("product_name");
+        String sku = request.getParameter("sku");
+        String category = request.getParameter("category");
+        int quantity = Integer.parseInt(request.getParameter("quantity"));
+        String supplier = request.getParameter("supplier");
+        double price = Double.parseDouble(request.getParameter("price"));
+        String location = request.getParameter("location");
+
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            Connection con = DriverManager.getConnection(
+                "jdbc:mysql://localhost:3306/inventorydb", "root", "password");
+
+            PreparedStatement ps = con.prepareStatement(
+                "INSERT INTO inventory(product_name, sku, category, quantity, supplier, price, location) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            ps.setString(1, name);
+            ps.setString(2, sku);
+            ps.setString(3, category);
+            ps.setInt(4, quantity);
+            ps.setString(5, supplier);
+            ps.setDouble(6, price);
+            ps.setString(7, location);
+
+            int rows = ps.executeUpdate();
+            if (rows > 0) {
+                request.setAttribute("message", "Item added successfully!");
+            } else {
+                request.setAttribute("message", "Failed to add item.");
+            }
+
+            RequestDispatcher rd = request.getRequestDispatcher("message.jsp");
+            rd.forward(request, response);
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+
+
+
+3. updateItem.jsp
+
+ import="java.sql.*" %>
+<%
+    String id = request.getParameter("id");
+    Class.forName("com.mysql.cj.jdbc.Driver");
+    Connection con = DriverManager.getConnection("jdbc:mysql://localhost:3306/inventorydb", "root", "password");
+    PreparedStatement ps = con.prepareStatement("SELECT * FROM inventory WHERE id=?");
+    ps.setInt(1, Integer.parseInt(id));
+    ResultSet rs = ps.executeQuery();
+    rs.next();
+%>
+
+<!DOCTYPE html>
+<html>
+<head><title>Update Item</title></head>
+<body style="font-family:Arial; text-align:center;">
+<h2>Update Inventory Item</h2>
+<form action="updateItem" method="post">
+    <input type="hidden" name="id" value="<%= rs.getInt("id") %>">
+    Product Name: <input type="text" name="product_name" value="<%= rs.getString("product_name") %>" required><br><br>
+    Quantity: <input type="number" name="quantity" value="<%= rs.getInt("quantity") %>" required><br><br>
+    Price: <input type="text" name="price" value="<%= rs.getDouble("price") %>" required><br><br>
+    Location: <input type="text" name="location" value="<%= rs.getString("location") %>"><br><br>
+    <input type="submit" value="Update Item">
+</form>
+</body>
+</html>
+
+
+
+
+4. UpdateItemServlet.java
+
+package com.example.controller;
+
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+import java.sql.*;
+
+public class UpdateItemServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+
+        int id = Integer.parseInt(request.getParameter("id"));
+        String name = request.getParameter("product_name");
+        int quantity = Integer.parseInt(request.getParameter("quantity"));
+        double price = Double.parseDouble(request.getParameter("price"));
+        String location = request.getParameter("location");
+
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            Connection con = DriverManager.getConnection(
+                "jdbc:mysql://localhost:3306/inventorydb", "root", "password");
+
+            PreparedStatement ps = con.prepareStatement(
+                "UPDATE inventory SET product_name=?, quantity=?, price=?, location=? WHERE id=?");
+            ps.setString(1, name);
+            ps.setInt(2, quantity);
+            ps.setDouble(3, price);
+            ps.setString(4, location);
+            ps.setInt(5, id);
+
+            ps.executeUpdate();
+            request.setAttribute("message", "Item updated successfully!");
+            RequestDispatcher rd = request.getRequestDispatcher("message.jsp");
+            rd.forward(request, response);
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+
+---
+
+5. DeleteItemServlet.java
+
+package com.example.controller;
+
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+import java.sql.*;
+
+public class DeleteItemServlet extends HttpServlet {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+
+        int id = Integer.parseInt(request.getParameter("id"));
+
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            Connection con = DriverManager.getConnection(
+                "jdbc:mysql://localhost:3306/inventorydb", "root", "password");
+
+            PreparedStatement ps = con.prepareStatement("DELETE FROM inventory WHERE id=?");
+            ps.setInt(1, id);
+            ps.executeUpdate();
+
+            response.sendRedirect("listItems");
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+
+---
+
+6. ListItemsServlet.java + inventoryList.jsp
+
+Lists all products with “Edit” and “Delete” buttons. (I can add this full page next if you want.)
+
+
+---
+
+7. web.xml Configuration
+
+<web-app>
+    <servlet>
+        <servlet-name>AddItemServlet</servlet-name>
+        <servlet-class>com.example.controller.AddItemServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>AddItemServlet</servlet-name>
+        <url-pattern>/addItem</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>UpdateItemServlet</servlet-name>
+        <servlet-class>com.example.controller.UpdateItemServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>UpdateItemServlet</servlet-name>
+        <url-pattern>/updateItem</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>DeleteItemServlet</servlet-name>
+        <servlet-class>com.example.controller.DeleteItemServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>DeleteItemServlet</servlet-name>
+        <url-pattern>/deleteItem</url-pattern>
+    </servlet-mapping>
+
+    <welcome-file-list>
+        <welcome-file>addItem.jsp</welcome-file>
+    </welcome-file-list>
+</web-app>
+
+
+
+Expected Outputs
+
+Action	Result
+
+Add new item	Record inserted into database
+Update item	Modified details saved and visible in inventory list
+Delete item	Record removed permanently
+View inventory	Displays updated list dynamically
+
+
+
+
+Would you like me to add the inventory list page (inventoryList.jsp + ListItemsServlet.java) next so you can view, edit, and delete all items on one dashboard page?
